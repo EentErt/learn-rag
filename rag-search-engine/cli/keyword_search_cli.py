@@ -4,7 +4,7 @@ import argparse
 import json
 from process_string import process_string
 from inverted_index import InvertedIndex
-from constants import BM25_K1
+from constants import BM25_K1, BM25_B
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -33,6 +33,11 @@ def main() -> None:
     bm25tf_parser.add_argument("doc_id", type=int, help="Document ID")
     bm25tf_parser.add_argument("term", type=str, help="Term to get BM25 TF for")
     bm25tf_parser.add_argument("k1", type=float, nargs="?", default=BM25_K1, help="BM25 K1 parameter")
+    bm25tf_parser.add_argument("b", type=float, nargs="?", default=BM25_B, help="BM25 K1 parameter")
+
+    bm25_search_parser = subparsers.add_parser("bm25search", help="Search movies using BM25")
+    bm25_search_parser.add_argument("query", type=str, help="Search query")
+    bm25_search_parser.add_argument("limit", type=int, nargs="?", default=5, help="Number of results to return")
 
     args = parser.parse_args()
 
@@ -84,7 +89,7 @@ def main() -> None:
             except Exception as e:
                 print(e)
             
-            tf_idf = inv_index.get_tfidf(args.doc_id, args.term)
+            tf_idf = inv_index.get_tfidf(args.doc_id, args.term, args.k1, args.b)
             print(f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}")
 
         case "bm25idf":
@@ -104,6 +109,18 @@ def main() -> None:
 
             bm25tf = inv_index.get_bm25_tf(args.doc_id, args.term)
             print(f"BM25 TF score of '{args.term}' in document '{args.doc_id}': {bm25tf:.2f}")
+
+        case "bm25search":
+            try:
+                inv_index.load()
+            except Exception as e:
+                print(e)
+
+            bm25_search_results = inv_index.bm25_search(args.query, args.limit)
+            for i in range(len(bm25_search_results)):
+                result = bm25_search_results[i][0]
+                score = bm25_search_results[i][1]
+                print(f"{i}: ({result["id"]}) {result["title"]} - Score: {score:.2f}")
 
         case _:
             parser.print_help()
