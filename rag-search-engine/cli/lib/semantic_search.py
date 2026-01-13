@@ -66,6 +66,22 @@ class ChunkedSemanticSearch(SemanticSearch):
         self.chunk_embeddings = None
         self.chunk_metadata = None
 
+    def build_chunk_embeddings(self, documents):
+        self.documents = documents
+        doc_list = []
+        for doc in documents:
+            self.document_map[doc['id']] = doc
+            doc_list.append( f"{doc['title']}: {doc['description']}")
+        chunks = []
+        chunks_metadata = []
+        for doc in documents:
+            if doc.get("description") is None:
+                continue
+            doc_chunks = semantic_chunk_text(doc["description"], max=4, overlap=1)
+            chunks.extend(doc_chunks)
+            for chunk in doc_chunks:
+
+
 def cosine_similarity(vec1, vec2):
     dot_product = np.dot(vec1, vec2)
     norm1 = np.linalg.norm(vec1)
