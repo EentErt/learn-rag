@@ -5,8 +5,8 @@ import os
 import re
 
 class SemanticSearch():
-    def __init__(self):
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+    def __init__(self, model_name="all-MiniLM-L6-v2"):
+        self.model = SentenceTransformer(model_name)
         self.embeddings = None
         self.documents = None
         self.document_map = {}
@@ -74,12 +74,66 @@ class ChunkedSemanticSearch(SemanticSearch):
             doc_list.append( f"{doc['title']}: {doc['description']}")
         chunks = []
         chunks_metadata = []
-        for doc in documents:
-            if doc.get("description") is None:
+        for idx, doc in enumerate(documents):
+            if doc.get("description") == "":
                 continue
             doc_chunks = semantic_chunk_text(doc["description"], max=4, overlap=1)
             chunks.extend(doc_chunks)
-            for chunk in doc_chunks:
+            for chunk_idx, chunk in enumerate(doc_chunks):
+                chunks_metadata.append({
+                    "movie_idx": idx,
+                    "chunk_idx": chunk_idx,
+                    "total_chunks": len(doc_chunks)
+                })
+        self.chunk_embeddings = self.model.encode(chunks, show_progress_bar=True)
+        self.chunk_metadata = chunks_metadata
+        with open("cache/chunk_embeddings.npy", "wb") as embeddings_file:
+            np.save(embeddings_file, self.chunk_embeddings)
+        with open("cache/chunk_metadata.json", "w") as metadata_file:
+            json.dump({"chunks": chunks_metadata, "total_chunks": len(chunks)}, metadata_file, indent=2)
+        return self.chunk_embeddings
+
+    def load_or_create_chunk_embeddings(self, documents):
+        try:
+            with open("cache/chunk_embeddings.npy", "rb") as file:
+                self.chunk_embeddings = np.load(file)
+            with open("cache/chunk_metadata.json", "r") as file:
+                self.chunk_metadata = json.load(file)["chunks"]
+            self.documents = documents
+            return self.chunk_embeddings
+        except:
+            return self.build_chunk_embeddings(documents)
+
+    def search_chunks(self, query: str, limit: int = 10):
+        query = self.generate_embedding(query)
+        chunk_scores = []
+        for i, embedding in enumerate(self.chunk_embeddings):
+            score = cosine_similarity(query, embedding)
+            chunk_scores.append({
+                "chunk_idx": i,
+                "movie_idx": self.chunk_metadata[i]["movie_idx"],
+                "score": score
+            })
+        movie_scores = {}
+        for score in chunk_scores:
+            if not movie_scores.get(score["movie_idx"]):
+                movie_scores[score["movie_idx"]] = score["score"]
+            elif score["score"] > movie_scores[score["movie_idx"]]:
+                movie_scores[score["movie_idx"]] = score["score"]
+        sorted_movies = sorted(movie_scores.items(), key=lambda x: x[1], reverse=True)
+        result = []
+        for (movie_id, score) in sorted_movies[:limit]:
+            result.append({
+                "id": movie_id,
+                "title": self.documents[movie_id]["title"],
+                "document": self.documents[movie_id]["description"][:100],
+                "score": round(score, 4),
+                "metadata": {}
+            })
+        return result
+        
+
+
 
 
 def cosine_similarity(vec1, vec2):
@@ -141,16 +195,16 @@ def chunk_text(text, chunk_size, overlap):
 def semantic_chunk_text(text, max, overlap):
     sentences = re.split(r"(?<=[.!?])\s+", text)
     chunks = []
-    over = ""
-    while len(sentences) > max:
-        chunk = " ".join(sentences[:max])
-        chunks.append(chunk)
-        if overlap > 0:
-            over = " ".join(sentences[max - overlap:max])
-        sentences = sentences[max:]
-    if over:
-        chunks.append(over + " " + " ".join(sentences))
-    else:
-        chunks.append(" ".join(sentences))
+    i = 0
+    while i < len(sentences):
+        chunk = ""
+        chunk = sentences[i:i+max]
+        if len(chunk) <= overlap:
+            break
+        i += max
+        if overlap:
+            i -= overlap
+        chunks.append(" ".join(chunk))
     return chunks
+
 
