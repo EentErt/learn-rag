@@ -193,7 +193,12 @@ def chunk_text(text, chunk_size, overlap):
     return chunks
 
 def semantic_chunk_text(text, max, overlap):
+    text = text.strip()
+    if text == "":
+        return []
     sentences = re.split(r"(?<=[.!?])\s+", text)
+    if len(sentences) == 1 and not sentences[0].endswith((".", "!", "?")):
+        return [text]
     chunks = []
     i = 0
     while i < len(sentences):
@@ -204,6 +209,10 @@ def semantic_chunk_text(text, max, overlap):
         i += max
         if overlap:
             i -= overlap
+        for sentence in chunk:
+            sentence = sentence.strip()
+        if chunk == "":
+            continue
         chunks.append(" ".join(chunk))
     return chunks
 
