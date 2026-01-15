@@ -4,7 +4,7 @@ import pickle
 import os
 from collections import Counter
 import math
-from constants import BM25_K1, BM25_B
+from lib.constants import BM25_K1, BM25_B
 
 class InvertedIndex():
     def __init__(self):
@@ -12,6 +12,7 @@ class InvertedIndex():
         self.docmap = {}
         self.term_frequencies = {}
         self.doc_lengths = {}
+        self.index_path = "cache/inverted_index.pkl"
 
     def __add_document(self, doc_id, text):
         tokens = process_string(text)

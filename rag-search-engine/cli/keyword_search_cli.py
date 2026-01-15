@@ -3,8 +3,8 @@
 import argparse
 import json
 from process_string import process_string
-from inverted_index import InvertedIndex
-from constants import BM25_K1, BM25_B
+from lib.inverted_index import InvertedIndex
+from lib.constants import BM25_K1, BM25_B
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
