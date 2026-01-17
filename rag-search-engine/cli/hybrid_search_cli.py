@@ -1,7 +1,7 @@
 import argparse
 from lib.hybrid_search import normalize_scores, HybridSearch
 import json
-from gemini import spell_check
+from lib.gemini import spell_check, rewrite
 
 
 def main() -> None:
@@ -20,7 +20,7 @@ def main() -> None:
     rrf_search_parser.add_argument("query", type=str, help="Query to search for")
     rrf_search_parser.add_argument("-k", type=int, nargs="?", default=60, help="RRF k parameter")
     rrf_search_parser.add_argument("--limit", type=int, nargs="?", default=5, help="Number of results to return")
-    rrf_search_parser.add_argument("--enhance", type=str, choices=["spell"], help="Query enhancement method")
+    rrf_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite"], help="Query enhancement method")
 
     args = parser.parse_args()
 
@@ -47,9 +47,16 @@ def main() -> None:
             query = args.query
             with open("data/movies.json", "r") as f:
                 movies = json.load(f)['movies']
-            if args.enhance == "spell":
-                query = spell_check(query).lstrip("Corrected: ")
-                print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
+            match args.enhance:
+                case "spell":
+                    query = spell_check(query).lstrip("Corrected: ")
+                    print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
+                case "rewrite":
+                    query = rewrite(query).lstrip("Rewritten query: ")
+                    print(f"Enhanced query ({args.enhance}): '{args.query}' -> {query}'\n")
+                case _:
+                    pass
+                
             search = HybridSearch(movies)
             results = search.rrf_search(query, args.k, args.limit)
             i = 1
