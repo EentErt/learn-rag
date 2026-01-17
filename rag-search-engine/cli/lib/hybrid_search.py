@@ -24,10 +24,8 @@ class HybridSearch:
         bm25_norms = normalize_scores([score for _, score in bm25_scores])
         bm25_scores = [(bm25_scores[i][0], bm25_norms[i]) for i in range(len(bm25_scores))]
 
-        sem_norms = normalize_scores([score['score'] for score in semantic_scores])
-        for i in range(len(semantic_scores)):
-            semantic_scores[i]['score'] = sem_norms[i]
-
+        sem_norms = normalize_scores([score for _, score in semantic_scores])
+        semantic_scores = [(semantic_scores[i][0], sem_norms[i]) for i in range(len(semantic_scores))]
 
         combined_scores = {}
 
@@ -39,16 +37,17 @@ class HybridSearch:
                     "semantic_score": 0.0,
                     "hybrid_score": 0.0
                 }
+
         for sem in semantic_scores:
-            if sem['id'] not in combined_scores:
-                combined_scores[sem['id']] = {
-                    "document": sem['document'],
+            if sem[0]['id'] not in combined_scores:
+                combined_scores[sem[0]['id']] = {
+                    "document": sem[0],
                     "bm25_score": 0.0,
-                    "semantic_score": sem['score'],
+                    "semantic_score": sem[1],
                     "hybrid_score": 0.0
                 }
             else:
-                combined_scores[sem['id']]['semantic_score'] = sem['score']
+                combined_scores[sem[0]['id']]['semantic_score'] = sem[1]
 
         for idx in combined_scores:
             combined_scores[idx]['hybrid_score'] = hybrid_score(combined_scores[idx]['bm25_score'], combined_scores[idx]['semantic_score'], alpha)
@@ -57,7 +56,36 @@ class HybridSearch:
         return sorted_combined
 
     def rrf_search(self, query, k, limit=10):
-        raise NotImplementedError("RRF hybrid search not implemented yet")
+        bm25_scores = self._bm25_search(query, limit * 500)
+        semantic_scores = self.semantic_search.search_chunks(query, limit * 500)
+
+        combined_scores = {}
+        for i, bm25 in enumerate(bm25_scores):
+            if bm25[0]['id'] not in combined_scores:
+                combined_scores[bm25[0]['id']] = {
+                    "document": bm25[0],
+                    "bm25_rank": 1 / (k + i + 1),
+                    "semantic_rank": 0.0,
+                    "rrf_score": 0.0
+                }
+
+        for i, sem in enumerate(semantic_scores):
+            if sem[0]['id'] not in combined_scores:
+                combined_scores[sem[0]['id']] = {
+                    "document": sem[0],
+                    "bm25_rank": 0.0,
+                    "semantic_rank": 1 / (k + i + 1),
+                    "rrf_score": 0.0
+                }
+            else:
+                combined_scores[sem[0]['id']]['semantic_rank'] = 1 / (k + i + 1)
+
+        for idx in combined_scores:
+            combined_scores[idx]['rrf_score'] = combined_scores[idx]['bm25_rank'] + combined_scores[idx]['semantic_rank']
+
+        sorted_combined = dict(sorted(combined_scores.items(), key = lambda x: x[1]['rrf_score'], reverse=True)[:limit])
+        return sorted_combined
+
 
 def hybrid_score(bm25_score, semantic_score, alpha=0.5):
     return alpha * bm25_score + (1 - alpha) * semantic_score

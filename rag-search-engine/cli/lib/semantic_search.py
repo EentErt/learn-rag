@@ -123,13 +123,7 @@ class ChunkedSemanticSearch(SemanticSearch):
         sorted_movies = sorted(movie_scores.items(), key=lambda x: x[1], reverse=True)
         result = []
         for (movie_id, score) in sorted_movies[:limit]:
-            result.append({
-                "id": movie_id,
-                "title": self.documents[movie_id]["title"],
-                "document": self.documents[movie_id]["description"][:100],
-                "score": round(score, 4),
-                "metadata": {}
-            })
+            result.append((self.documents[movie_id], score))
         return result
         
 
