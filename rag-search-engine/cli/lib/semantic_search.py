@@ -120,7 +120,7 @@ class ChunkedSemanticSearch(SemanticSearch):
                 movie_scores[score["movie_idx"]] = score["score"]
             elif score["score"] > movie_scores[score["movie_idx"]]:
                 movie_scores[score["movie_idx"]] = score["score"]
-        sorted_movies = sorted(movie_scores.items(), key=lambda x: x[1], reverse=True)
+        sorted_movies = list(sorted(movie_scores.items(), key=lambda x: x[1], reverse=True))
         result = []
         for (movie_id, score) in sorted_movies[:limit]:
             result.append((self.documents[movie_id], score))

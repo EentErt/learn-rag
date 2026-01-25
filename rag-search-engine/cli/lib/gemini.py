@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from google import genai
+import json
 
 def load_gemini():
     load_dotenv()
@@ -42,3 +43,57 @@ Examples:
 Rewritten query:"""
     response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
     return response.text
+
+def expand_query(text):
+    client = load_gemini()
+    prompt = f"""Expand this movie search query with related terms.
+
+Add synonyms and related concepts that might appear in movie descriptions.
+Keep expansions relevant and focused.
+This will be appended to the original query.
+
+Examples:
+
+- "scary bear movie" -> "scary horror grizzly bear movie terrifying film"
+- "action movie with bear" -> "action thriller bear chase fight adventure"
+- "comedy with bear" -> "comedy funny bear humor lighthearted"
+
+Query: "{text}"
+"""
+    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    return response.text
+
+def llm_score(doc, query):
+    client = load_gemini()
+    prompt = f"""Rate how well this movie matches the search query.
+
+Query: "{query}"
+Movie: {doc.get("title", "")} - {doc.get("document", "")}
+
+Consider:
+- Direct relevance to query
+- User intent (what they're looking for)
+- Content appropriateness
+
+Rate 0-10 (10 = perfect match).
+Give me ONLY the number in your response, no other text or explanation.
+
+Score:"""
+    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    return response.text
+
+def llm_score_batch(doc_list, query):
+    client = load_gemini()
+    prompt = f"""Rank these movies by relevance to the search query.
+
+Query: "{query}"
+
+Movies:
+{str(doc_list)}
+
+Return ONLY the IDs in order of relevance (best match first). Return a valid JSON list, nothing else. The list should contain only numbers, and no text. For example:
+
+[75, 12, 34, 2, 1]
+"""
+    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    return json.loads(response.text.strip("```").strip("json"))

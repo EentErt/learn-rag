@@ -12,7 +12,7 @@ class InvertedIndex():
         self.docmap = {}
         self.term_frequencies = {}
         self.doc_lengths = {}
-        self.index_path = "cache/inverted_index.pkl"
+        self.index_path = "cache/index.pkl"
 
     def __add_document(self, doc_id, text):
         tokens = process_string(text)
@@ -29,8 +29,8 @@ class InvertedIndex():
         doc_ids = self.index.get(term.lower())
         if doc_ids is None:
             return None
-        for id in doc_ids:
-            docs.append(self.docmap[id])
+        for idx in doc_ids:
+            docs.append(self.docmap[idx])
         return docs
     
     def bm25_search(self, query, limit):
@@ -72,9 +72,10 @@ class InvertedIndex():
         term = process_string(term)
         if len(term) != 1:
             raise Exception("search term must be a single word")
-        
+        match_doc_count = 0
         doc_count = len(self.docmap)
-        match_doc_count = len(self.get_documents(term[0]))
+        if self.get_documents(term[0]):
+            match_doc_count = len(self.get_documents(term[0]))
         idf = math.log((doc_count + 1) / (match_doc_count + 1))
 
         return idf
@@ -85,7 +86,9 @@ class InvertedIndex():
             raise Exception("search term must be a single word")
         
         n = len(self.docmap)
-        df = len(self.get_documents(term[0]))
+        df = 0
+        if self.get_documents(term[0]):
+            df = len(self.get_documents(term[0]))
         return math.log((n - df + 0.5) / (df + 0.5) + 1)
     
     def get_tfidf(self, doc_id, term):

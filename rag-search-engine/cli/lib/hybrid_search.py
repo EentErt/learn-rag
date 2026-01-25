@@ -10,6 +10,7 @@ class HybridSearch:
 
         self.idx = InvertedIndex()
         if not os.path.exists(self.idx.index_path):
+            print("path does not exist")
             self.idx.build()
             self.idx.save()
 
