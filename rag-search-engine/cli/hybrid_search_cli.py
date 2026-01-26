@@ -1,7 +1,7 @@
 import argparse
 from lib.hybrid_search import normalize_scores, HybridSearch
 import json
-from lib.gemini import spell_check, rewrite, expand_query, llm_score, llm_score_batch
+from lib.gemini import spell_check, rewrite, expand_query, llm_score, llm_score_batch, llm_evaluate
 import time
 from sentence_transformers import CrossEncoder
 
@@ -24,7 +24,7 @@ def main() -> None:
     rrf_search_parser.add_argument("--limit", type=int, nargs="?", default=5, help="Number of results to return")
     rrf_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite", "expand"], help="Query enhancement method")
     rrf_search_parser.add_argument("--rerank-method", type=str, choices=["individual", "batch", "cross_encoder"], help="Method for reranking search results")
-
+    rrf_search_parser.add_argument("--evaluate", action='store_true', help="Use an LLM to evaluate the results")
 
     args = parser.parse_args()
 
@@ -113,8 +113,19 @@ def main() -> None:
                 i += 1
                 if i > args.limit:
                     break
+            
+            if args.evaluate:
+                evaluate_results = [f"{results[idx]['document']['title']}: {results[idx]['document']['description']}" for idx in results]
+                evaluation = llm_evaluate(evaluate_results, query)
+                i = 0
+                for idx in results:
+                    print(f"{i+1}. {results[idx]['document']['title']}: {evaluation[i]}/3")
+                    i += 1
+
+
         case _:
             parser.print_help()
+
 
 
 if __name__ == "__main__":
